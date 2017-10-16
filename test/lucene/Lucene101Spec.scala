@@ -19,10 +19,11 @@ package lucene
 import uk.gov.hmrc.play.test.UnitSpec
 import org.apache.lucene.analysis.standard.StandardAnalyzer
 import org.apache.lucene.document.{Document, Field, StringField, TextField}
-import org.apache.lucene.index.{DirectoryReader, IndexReader, IndexWriter, IndexWriterConfig}
-import org.apache.lucene.search.IndexSearcher
+import org.apache.lucene.index._
+import org.apache.lucene.search._
 import org.apache.lucene.store.{Directory, RAMDirectory}
 import org.apache.lucene.queryparser.classic.QueryParser
+import org.apache.lucene.util.QueryBuilder
 
 
 class Lucene101Spec extends UnitSpec {
@@ -30,9 +31,9 @@ class Lucene101Spec extends UnitSpec {
  "Wibble" should {
 
    val analyzer = new StandardAnalyzer();
-   val config = new IndexWriterConfig(analyzer);
 
    def buildIndex() = {
+     val config = new IndexWriterConfig(analyzer);
      def addDoc(w: IndexWriter, title: String, isbn: String) {
        val doc = new Document
        doc.add(new TextField("title", title, Field.Store.YES))
@@ -67,11 +68,42 @@ class Lucene101Spec extends UnitSpec {
       result.scoreDocs.toSeq map {
         result =>
           val doc = searcher.doc(result.doc)
-          val title = doc.getFields("title").head.stringValue()
-          val isbn = doc.getFields("isbn").head.stringValue()
+          val title = doc.get("title") //getFields("title").head.stringValue()
+          val isbn = doc.get("isbn") //getFields("isbn").head.stringValue()
           (result.score, isbn, title)
       } shouldBe "xxx"
     }
+
+   "foo2" in {
+     val index = buildIndex()
+
+     val reader: IndexReader = DirectoryReader.open(index)
+     val searcher = new IndexSearcher(reader)
+
+     val builder = new QueryBuilder(analyzer)
+     val query = builder.createBooleanQuery("title", "Lucene")
+
+//     val query = new TermQuery(new Term("title", "Lucene"))
+
+//     val query: Query = new BooleanQuery.Builder().
+//       add(new TermQuery(new Term("title", "Lucene")), BooleanClause.Occur.MUST).
+//       add(new WildcardQuery(new Term("title", "Lucene")), BooleanClause.Occur.MUST).
+//       add(new PrefixQuery(new Term("title", "Lucene")), BooleanClause.Occur.MUST).
+//       build()
+
+     val result = searcher.search(query, 5)
+
+     result.totalHits shouldBe 2
+
+     result.scoreDocs.toSeq map {
+       result =>
+         val doc = searcher.doc(result.doc)
+         val title = doc.get("title") //getFields("title").head.stringValue()
+       val isbn = doc.get("isbn") //getFields("isbn").head.stringValue()
+         (result.score, isbn, title)
+     } shouldBe "xxx"
+   }
+
   }
 
 

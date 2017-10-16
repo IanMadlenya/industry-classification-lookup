@@ -21,7 +21,7 @@ trait MicroService {
 
   lazy val appDependencies : Seq[ModuleID] = ???
   lazy val plugins : Seq[Plugins] = Seq.empty
-  lazy val playSettings : Seq[Setting[_]] = Seq.empty
+  lazy val playSettings : Seq[Setting[_]] = LuceneIndexCreator.indexSettings
 
 
   lazy val microservice = Project(appName, file("."))

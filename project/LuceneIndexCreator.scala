@@ -65,7 +65,19 @@ object LuceneIndexCreator extends IndexBuilder {
 //    },
 
 //    mappings in Universal ++= directory((resourceManaged in Compile).value / "conf" / "index"),
-    mappings in Universal ++= contentOf((resourceManaged in Compile).value),
+
+//    mappings in Universal ++= (packageBin in Compile, target) map { (_, target) => contentOf((resourceManaged in Compile).value) },
+
+    mappings in Universal <++= (packageBin in Compile, resourceManaged in Compile) map { (_, managed) => {
+      log.debug(s"mappings in Universal :: managed - $managed")
+      log.debug(s"Getting content of ${managed}")
+      log.debug(s"${contentOf( managed )}")
+      contentOf( managed )
+    } }, //new File("./target/scala-2.11/resource_managed/main/conf/index")) },
+
+//    mappings in (Compile, packageBin) += {
+//      ((resourceManaged in Compile).value / "conf" / "index" / "sic8" / "*") -> "foo"
+//    },
 
     // clean the old location where indexes were stored
     cleanFiles += baseDirectory { base => base / "conf"/ "index" }.value
@@ -171,7 +183,7 @@ trait IndexBuilder {
       w.commit() // Should flush the contents
       w.close()
 
-      log.info(s"Index successfully built, $numDocs in the index (took ${System.currentTimeMillis - startTime}ms).")
+      log.info(s"\nXXX\nXXX\nIndex successfully built, $numDocs in the index (took ${System.currentTimeMillis - startTime}ms).\nXXX\nXXX\n")
       Thread.sleep(1000)
       log.info(s"Finished 1a second wait building index.")
       Thread.sleep(1000)

@@ -32,52 +32,30 @@ import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
 object LuceneIndexCreator extends IndexBuilder {
 
-  val indexBuild = TaskKey[Int]("index-build")
-  val indexClean = TaskKey[Int]("index-clean")
+  val indexBuild = TaskKey[Seq[File]]("index-build")
 
   import Append._
 
+  val indexBuildTask = Def.task {
+    val file = (resourceManaged in Compile).value / "conf" / "index" / "sic8"
+    buildIndex(file.toPath)
+
+    val files = Seq(file) ++ file.listFiles()
+    log.debug(s"Index files to be copied by resource generator ${files.mkString(",")}")
+    files
+  }
+
   val indexSettings = Seq(
-    indexBuild := {
-  //    buildIndex()
-      0
-    },
-    indexClean := {
-//      clean()
-      0
-    },
+    indexBuild := indexBuildTask.value,
 
-    // (compile in Compile) := ((compile in Compile) dependsOn indexBuild).value,
-
-    resourceGenerators in Compile += Def.task {
-      val file = (resourceManaged in Compile).value / "conf" / "index" / "sic8"
-      buildIndex(file.toPath)
-
-      // TODO see if this helps with the packaging 'sbt clean dist-tgz' doesn't package the index correctly
-      // it's not been copied from target/resource_managed/main to target/classes
-      val files = Seq(file) ++ file.listFiles()
-      log.debug(s"Index files to be copied by resource generator ${files.mkString(",")}")
-      files
-    },
-//    extraFiles += ((resourceManaged in Compile).value / "conf" / "index" / "sic8" / "*").get,
-//    mappings in config("universal") += {
-//      ((resourceManaged in Compile).value / "conf" / "index" ) -> "conf/index"
-//    },
-
-//    mappings in Universal ++= directory((resourceManaged in Compile).value / "conf" / "index"),
-
-//    mappings in Universal ++= (packageBin in Compile, target) map { (_, target) => contentOf((resourceManaged in Compile).value) },
+    resourceGenerators in Compile += indexBuildTask,
 
     mappings in Universal <++= (packageBin in Compile, resourceManaged in Compile) map { (_, managed) => {
       log.debug(s"mappings in Universal :: managed - $managed")
       log.debug(s"Getting content of ${managed}")
       log.debug(s"${contentOf( managed )}")
       contentOf( managed )
-    } }, //new File("./target/scala-2.11/resource_managed/main/conf/index")) },
-
-//    mappings in (Compile, packageBin) += {
-//      ((resourceManaged in Compile).value / "conf" / "index" / "sic8" / "*") -> "foo"
-//    },
+    } },
 
     // clean the old location where indexes were stored
     cleanFiles += baseDirectory { base => base / "conf"/ "index" }.value
@@ -131,12 +109,8 @@ trait IndexBuilder {
 
     val index: Directory = new NIOFSDirectory(indexSic8Path);
 
+    // Only build if out of date or missing
     if( index.listAll().size == 0 ) {
-
-//      clean(indexSic8Path) // TODO - ideally could check before building on compile
-
-      // TODO clean out the index directory first
-      // TODO only build if out of date or missing
 
       log.info(s"Building new index into ${indexSic8Path.toAbsolutePath}")
 
@@ -182,18 +156,6 @@ trait IndexBuilder {
       val numDocs = w.numDocs()
       w.commit() // Should flush the contents
       w.close()
-
-      log.info(s"\nXXX\nXXX\nIndex successfully built, $numDocs in the index (took ${System.currentTimeMillis - startTime}ms).\nXXX\nXXX\n")
-      Thread.sleep(1000)
-      log.info(s"Finished 1a second wait building index.")
-      Thread.sleep(1000)
-      log.info(s"Finished 1b second wait building index.")
-      Thread.sleep(1000)
-      log.info(s"Finished 1c second wait building index.")
-      Thread.sleep(1000)
-      log.info(s"Finished 1d second wait building index.")
-      Thread.sleep(1000)
-      log.info(s"Finished 1e second wait building index.")
     }
     index
   }

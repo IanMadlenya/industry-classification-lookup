@@ -91,7 +91,9 @@ trait SIC8IndexConnector {
 
   // TODO - when should we close the index?
   val index: NIOFSDirectory = {
-    val path: Path = FileSystems.getDefault.getPath("conf", "index")
+    // TODO index location in config ?!
+    val path = FileSystems.getDefault().getPath("target", "scala-2.11", "resource_managed", "main", "conf", "index", "sic8")
+//    val path: Path = FileSystems.getDefault.getPath("conf", "index").resolve("sic8")
     new NIOFSDirectory(path)
   }
 

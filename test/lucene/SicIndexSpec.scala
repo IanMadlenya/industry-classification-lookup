@@ -52,15 +52,16 @@ class SicIndexSpec extends UnitSpec {
 
     val analyzer = new StandardAnalyzer(stopSet);
 
+//    val indexPath = FileSystems.getDefault().getPath("conf", "index").resolve("sic8")
+    val indexPath = FileSystems.getDefault().getPath("target", "scala-2.11", "resource_managed", "main", "conf", "index", "sic8")
+
     def openIndex() = {
-      val path: Path = FileSystems.getDefault().getPath("conf", "index")
-      val index: Directory = new NIOFSDirectory(path);
+      val index: Directory = new NIOFSDirectory(indexPath);
       index
     }
 
     def withSearcher(f: IndexSearcher => Unit) = {
-      val path: Path = FileSystems.getDefault().getPath("conf", "index")
-      val index: Directory = new NIOFSDirectory(path);
+      val index: Directory = new NIOFSDirectory(indexPath);
       val reader: IndexReader = DirectoryReader.open(index)
       val searcher = new IndexSearcher(reader)
       f(searcher)
@@ -68,8 +69,7 @@ class SicIndexSpec extends UnitSpec {
     }
 
     def withIndex(f: Directory => Unit) = {
-      val path: Path = FileSystems.getDefault().getPath("conf", "index")
-      val index: Directory = new NIOFSDirectory(path);
+      val index: Directory = new NIOFSDirectory(indexPath);
       f(index)
       index.close()
     }

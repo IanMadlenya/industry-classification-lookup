@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import java.nio.file.{FileSystems, Path}
+import java.nio.file.{FileSystem, FileSystems, Path, Paths}
 
 import org.apache.commons.io.FileUtils
 import org.apache.lucene.analysis.CharArraySet
@@ -26,30 +26,62 @@ import org.apache.lucene.index.{IndexWriter, IndexWriterConfig}
 import org.apache.lucene.store.{Directory, NIOFSDirectory}
 import sbt.Keys._
 import sbt.{TaskKey, _}
+import com.typesafe.sbt.SbtNativePackager.Universal
+import com.typesafe.sbt.packager.MappingsHelper.{directory,contentOf}
+import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
 
 object LuceneIndexCreator extends IndexBuilder {
 
   val indexBuild = TaskKey[Int]("index-build")
   val indexClean = TaskKey[Int]("index-clean")
 
-  val indexSettings = Seq(
-  indexBuild := {
-    buildIndex()
-    0
-  },
-  indexClean := {
-    clean()
-    0
-  },
+  import Append._
 
-  (compile in Compile) <<= (compile in Compile) dependsOn indexBuild
+  val indexSettings = Seq(
+    indexBuild := {
+  //    buildIndex()
+      0
+    },
+    indexClean := {
+//      clean()
+      0
+    },
+
+    // (compile in Compile) := ((compile in Compile) dependsOn indexBuild).value,
+
+    resourceGenerators in Compile += Def.task {
+      val file = (resourceManaged in Compile).value / "conf" / "index" / "sic8"
+      buildIndex(file.toPath)
+
+      // TODO see if this helps with the packaging 'sbt clean dist-tgz' doesn't package the index correctly
+      // it's not been copied from target/resource_managed/main to target/classes
+      val files = Seq(file) ++ file.listFiles()
+      log.debug(s"Index files to be copied by resource generator ${files.mkString(",")}")
+      files
+    },
+//    extraFiles += ((resourceManaged in Compile).value / "conf" / "index" / "sic8" / "*").get,
+//    mappings in config("universal") += {
+//      ((resourceManaged in Compile).value / "conf" / "index" ) -> "conf/index"
+//    },
+
+//    mappings in Universal ++= directory((resourceManaged in Compile).value / "conf" / "index"),
+    mappings in Universal ++= contentOf((resourceManaged in Compile).value),
+
+    // clean the old location where indexes were stored
+    cleanFiles += baseDirectory { base => base / "conf"/ "index" }.value
   )
+
+//  val indexSic8Path: Path = (resourceManaged in Compile).value.toPath.resolve("index/sic8")
 }
 
 trait IndexBuilder {
 
   val log = ConsoleLogger()
-  val path: Path = FileSystems.getDefault.getPath("conf", "index")
+  private val fs: FileSystem = FileSystems.getDefault
+//  val rootPath: Path = fs.getPath("conf", "index")
+//  val indexSic8Path: Path = rootPath.resolve("sic8")
+
+//  val indexSic8Path: Path
 
   val industryCodeMapping = Map.apply(
     "01" -> "A", "02" -> "A", "03" -> "A",
@@ -77,67 +109,80 @@ trait IndexBuilder {
     "99" -> "U"
   )
 
-  def clean() {
-    FileUtils.deleteDirectory(path.toFile)
+  def clean(rootPath: Path) {
+    FileUtils.deleteDirectory(rootPath.toFile)
   }
 
-  def buildIndex(): Directory = {
+  def buildIndex(indexSic8Path: Path): Directory = {
 
     val fileSicPipe = "conf/sic-codes.txt"
 
-    clean() // TODO - ideally could check before building on compile
+    val index: Directory = new NIOFSDirectory(indexSic8Path);
 
-    // TODO clean out the index directory first
-    // TODO only build if out of date or missing
+    if( index.listAll().size == 0 ) {
 
-    log.info(s"Building new index into ${path.toAbsolutePath}")
+//      clean(indexSic8Path) // TODO - ideally could check before building on compile
 
-    val startTime = System.currentTimeMillis()
+      // TODO clean out the index directory first
+      // TODO only build if out of date or missing
 
-    val index: Directory = new NIOFSDirectory(path);
+      log.info(s"Building new index into ${indexSic8Path.toAbsolutePath}")
 
-    // TODO doesn't seem to be working - i.e. to drop out IT
-    val stopWords = List(
-      "a", "an", "and", "are", "as", "at", "be", "but", "by",
-      "for", "if", "in", "into", "is", // "it",
-      "no", "not", "of", "on", "or", "such",
-      "that", "the", "their", "then", "there", "these",
-      "they", "this", "to", "was", "will", "with"
-    )
-    val stopSet = {
-      import scala.collection.JavaConverters._
-      new CharArraySet(stopWords.asJava, true);
+      val startTime = System.currentTimeMillis()
+
+      // TODO doesn't seem to be working - i.e. to drop out IT
+      val stopWords = List(
+        "a", "an", "and", "are", "as", "at", "be", "but", "by",
+        "for", "if", "in", "into", "is", // "it",
+        "no", "not", "of", "on", "or", "such",
+        "that", "the", "their", "then", "there", "these",
+        "they", "this", "to", "was", "will", "with"
+      )
+      val stopSet = {
+        import scala.collection.JavaConverters._
+        new CharArraySet(stopWords.asJava, true);
+      }
+
+      val analyzer = new StandardAnalyzer(stopSet);
+      val config = new IndexWriterConfig(analyzer);
+      val facetConfig = new FacetsConfig()
+
+      def addDoc(w: IndexWriter, code: String, description: String) {
+        val doc = new Document
+        doc.add(new StringField("code8", code, Field.Store.YES))
+        doc.add(new TextField("description", description, Field.Store.YES))
+        doc.add(new SortedSetDocValuesFacetField("sector", returnIndustrySector(code)))
+        w.addDocument(facetConfig.build(doc))
+      }
+
+      val w = new IndexWriter(index, config);
+
+      import scala.io.Source
+      val source = Source.fromFile(fileSicPipe)
+      for (line <- source.getLines()) {
+        val split = line.split("\\|")
+        val code = split(0)
+        val desc = split(1)
+        addDoc(w, code, desc)
+      }
+      source.close()
+
+      val numDocs = w.numDocs()
+      w.commit() // Should flush the contents
+      w.close()
+
+      log.info(s"Index successfully built, $numDocs in the index (took ${System.currentTimeMillis - startTime}ms).")
+      Thread.sleep(1000)
+      log.info(s"Finished 1a second wait building index.")
+      Thread.sleep(1000)
+      log.info(s"Finished 1b second wait building index.")
+      Thread.sleep(1000)
+      log.info(s"Finished 1c second wait building index.")
+      Thread.sleep(1000)
+      log.info(s"Finished 1d second wait building index.")
+      Thread.sleep(1000)
+      log.info(s"Finished 1e second wait building index.")
     }
-
-    val analyzer = new StandardAnalyzer(stopSet);
-    val config = new IndexWriterConfig(analyzer);
-    val facetConfig = new FacetsConfig()
-
-    def addDoc(w: IndexWriter, code: String, description: String) {
-      val doc = new Document
-      doc.add(new StringField("code8", code, Field.Store.YES))
-      doc.add(new TextField("description", description, Field.Store.YES))
-      doc.add(new SortedSetDocValuesFacetField("sector", returnIndustrySector(code)))
-      w.addDocument(facetConfig.build(doc))
-    }
-
-    val w = new IndexWriter(index, config);
-
-    import scala.io.Source
-    val source = Source.fromFile(fileSicPipe)
-    for (line <- source.getLines()) {
-      val split = line.split("\\|")
-      val code = split(0)
-      val desc = split(1)
-      addDoc(w, code, desc)
-    }
-    source.close()
-
-    val numDocs = w.numDocs()
-    w.commit() // Should flush the contents
-    w.close()
-
-    log.info(s"Index successfully built, $numDocs in the index (took ${System.currentTimeMillis - startTime}ms).")
     index
   }
 

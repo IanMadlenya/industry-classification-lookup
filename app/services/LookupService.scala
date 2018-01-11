@@ -90,14 +90,22 @@ trait SIC8IndexConnector {
   }
 
   // TODO - when should we close the index?
-  val index: NIOFSDirectory = {
+  def index(name: String): NIOFSDirectory = {
     // TODO index location in config ?!
-    val path = FileSystems.getDefault().getPath("target", "scala-2.11", "resource_managed", "main", "conf", "index", "sic8")
+//    val pathLocal = FileSystems.getDefault().getPath("target", "scala-2.11", "resource_managed", "main", "conf", "index", name)
+//    val pathSM = FileSystems.getDefault().getPath("conf", "index", name)
+
+    val pathLocal = FileSystems.getDefault().getPath("target/scala-2.11/resource_managed/main/conf/index", name)
+    val pathSM = FileSystems.getDefault().getPath("conf/index", name)
+
+    val path = pathSM
+
 //    val path: Path = FileSystems.getDefault.getPath("conf", "index").resolve("sic8")
+
     new NIOFSDirectory(path)
   }
 
-  val reader: DirectoryReader = DirectoryReader.open(index)
+  val reader: DirectoryReader = DirectoryReader.open(index("sic8"))
   val searcher = new IndexSearcher(reader)
   val facetsCollector = new FacetsCollector()
 

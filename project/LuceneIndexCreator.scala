@@ -27,18 +27,18 @@ import org.apache.lucene.store.{Directory, NIOFSDirectory}
 import sbt.Keys._
 import sbt.{TaskKey, _}
 import com.typesafe.sbt.SbtNativePackager.Universal
-import com.typesafe.sbt.packager.MappingsHelper.{directory,contentOf}
-import uk.gov.hmrc.sbtdistributables.SbtDistributablesPlugin._
+import com.typesafe.sbt.packager.MappingsHelper.contentOf
 
-object LuceneIndexCreator extends IndexBuilder {
+object LuceneIndexCreator {
 
+  val log = ConsoleLogger()
   val indexBuild = TaskKey[Seq[File]]("index-build")
 
   import Append._
 
   val indexBuildTask = Def.task {
-    val file = (resourceManaged in Compile).value / "conf" / "index" / "sic8"
-    buildIndex(file.toPath)
+    val root = (resourceManaged in Compile).value / "conf" / "index"
+    val file = HMRCSIC8Builder.buildIndex(root)
 
     val files = Seq(file) ++ file.listFiles()
     log.debug(s"Index files to be copied by resource generator ${files.mkString(",")}")
@@ -51,25 +51,111 @@ object LuceneIndexCreator extends IndexBuilder {
     resourceGenerators in Compile += indexBuildTask,
 
     mappings in Universal <++= (packageBin in Compile, resourceManaged in Compile) map { (_, managed) => {
-//      log.debug(s"mappings in Universal :: managed - $managed")
-//      log.debug(s"Getting content of ${managed}")
-//      log.debug(s"${contentOf( managed )}")
       contentOf( managed )
     } },
 
     // clean the old location where indexes were stored
     cleanFiles += baseDirectory { base => base / "conf"/ "index" }.value
   )
-
-//  val indexSic8Path: Path = (resourceManaged in Compile).value.toPath.resolve("index/sic8")
 }
 
-trait IndexBuilder {
+object HMRCSIC8Builder extends SICIndexBuilder {
+
+  def buildIndex(rootPath: File): File = {
+    val name = "hmrc-sic8"
+    val sic8Path = rootPath / name
+
+    buildIndexInternal(name, sic8Path.toPath){ addDocument =>
+      import scala.io.Source
+      var docsAdded = 0
+      val fileSicPipe = "conf/sic-codes.txt"
+      val source = Source.fromFile(fileSicPipe)
+      for (line <- source.getLines()) {
+        val split = line.split("\\|")
+        val code = split(0)
+        val desc = split(1)
+        addDocument(SicDocument(code, desc))
+        docsAdded+=1
+      }
+      source.close()
+
+      docsAdded
+    }
+
+    sic8Path
+  }
+}
+
+
+case class SicDocument(code: String, description: String)
+
+trait SICIndexBuilder extends IndustryCodeMapping {
+
+  type AddDocument = Function1[SicDocument, Boolean]
 
   val log = ConsoleLogger()
   private val fs: FileSystem = FileSystems.getDefault
 
-  val industryCodeMapping = Map.apply(
+  def clean(rootPath: Path) {
+    FileUtils.deleteDirectory(rootPath.toFile)
+  }
+
+  def buildIndexInternal(name: String, indexSic8Path: Path)(processSource: AddDocument => Int): Directory = {
+
+    val index: Directory = new NIOFSDirectory(indexSic8Path);
+
+    // Only build if out of date or missing
+    if( index.listAll().size == 0 ) {
+
+      log.info(s"""Building new index "${name}" into ${indexSic8Path.toAbsolutePath}""")
+
+      val startTime = System.currentTimeMillis()
+
+      // TODO doesn't seem to be working - i.e. to drop out IT
+      val stopWords = List(
+        "a", "an", "and", "are", "as", "at", "be", "but", "by",
+        "for", "if", "in", "into", "is", // "it",
+        "no", "not", "of", "on", "or", "such",
+        "that", "the", "their", "then", "there", "these",
+        "they", "this", "to", "was", "will", "with"
+      )
+      val stopSet = {
+        import scala.collection.JavaConverters._
+        new CharArraySet(stopWords.asJava, true);
+      }
+
+      val analyzer = new StandardAnalyzer(stopSet);
+      val config = new IndexWriterConfig(analyzer);
+      val facetConfig = new FacetsConfig()
+
+
+      def addDoc(w: IndexWriter)(sicDoc: SicDocument) = {
+        val doc = new Document
+        doc.add(new StringField("code8", sicDoc.code, Field.Store.YES))
+        doc.add(new TextField("description", sicDoc.description, Field.Store.YES))
+        doc.add(new SortedSetDocValuesFacetField("sector", returnIndustrySector(sicDoc.code)))
+        w.addDocument(facetConfig.build(doc))
+        true
+      }
+
+      val w = new IndexWriter(index, config);
+
+      val numAdded = processSource(addDoc(w)_)
+
+      val numIndexDocs = w.numDocs()
+
+      w.commit() // Should flush the contents
+      w.close()
+
+      log.info(s"""Index "${name}" successfully built, $numIndexDocs in the index (adding ${numAdded} took ${System.currentTimeMillis - startTime}ms).""")
+    }
+    index
+  }
+
+}
+
+trait IndustryCodeMapping {
+  private val industryCodeMapping = Map.apply(
     "01" -> "A", "02" -> "A", "03" -> "A",
     "05" -> "B", "06" -> "B", "07" -> "B", "08" -> "B", "09" -> "B",
     "10" -> "C", "11" -> "C", "12" -> "C", "13" -> "C", "14" -> "C", "15" -> "C", "16" -> "C", "17" -> "C",
@@ -94,67 +180,6 @@ trait IndexBuilder {
     "97" -> "T", "98" -> "T",
     "99" -> "U"
   )
-
-  def clean(rootPath: Path) {
-    FileUtils.deleteDirectory(rootPath.toFile)
-  }
-
-  def buildIndex(indexSic8Path: Path): Directory = {
-
-    val fileSicPipe = "conf/sic-codes.txt"
-
-    val index: Directory = new NIOFSDirectory(indexSic8Path);
-
-    // Only build if out of date or missing
-    if( index.listAll().size == 0 ) {
-
-      log.info(s"Building new index into ${indexSic8Path.toAbsolutePath}")
-
-      val startTime = System.currentTimeMillis()
-
-      // TODO doesn't seem to be working - i.e. to drop out IT
-      val stopWords = List(
-        "a", "an", "and", "are", "as", "at", "be", "but", "by",
-        "for", "if", "in", "into", "is", // "it",
-        "no", "not", "of", "on", "or", "such",
-        "that", "the", "their", "then", "there", "these",
-        "they", "this", "to", "was", "will", "with"
-      )
-      val stopSet = {
-        import scala.collection.JavaConverters._
-        new CharArraySet(stopWords.asJava, true);
-      }
-
-      val analyzer = new StandardAnalyzer(stopSet);
-      val config = new IndexWriterConfig(analyzer);
-      val facetConfig = new FacetsConfig()
-
-      def addDoc(w: IndexWriter, code: String, description: String) {
-        val doc = new Document
-        doc.add(new StringField("code8", code, Field.Store.YES))
-        doc.add(new TextField("description", description, Field.Store.YES))
-        doc.add(new SortedSetDocValuesFacetField("sector", returnIndustrySector(code)))
-        w.addDocument(facetConfig.build(doc))
-      }
-
-      val w = new IndexWriter(index, config);
-
-      import scala.io.Source
-      val source = Source.fromFile(fileSicPipe)
-      for (line <- source.getLines()) {
-        val split = line.split("\\|")
-        val code = split(0)
-        val desc = split(1)
-        addDoc(w, code, desc)
-      }
-      source.close()
-
-      val numDocs = w.numDocs()
-      w.commit() // Should flush the contents
-      w.close()
-    }
-    index
-  }
 
   def returnIndustrySector(sicCode: String): String = {
     val firstTwoChars = sicCode.substring(0,2)

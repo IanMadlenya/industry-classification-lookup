@@ -52,8 +52,7 @@ class SicIndexSpec extends UnitSpec {
 
     val analyzer = new StandardAnalyzer(stopSet);
 
-//    val indexPath = FileSystems.getDefault().getPath("conf", "index").resolve("sic8")
-    val indexPath = FileSystems.getDefault().getPath("target", "scala-2.11", "resource_managed", "main", "conf", "index", "sic8")
+    val indexPath = FileSystems.getDefault().getPath("target", "scala-2.11", "resource_managed", "main", "conf", "index", "hmrc-sic8")
 
     def openIndex() = {
       val index: Directory = new NIOFSDirectory(indexPath);

@@ -32,7 +32,7 @@ class SIC8IndexConnectorSpec extends UnitSpec with MockitoSugar {
     val index = new SIC8IndexConnectorImpl(mockConfig)
   }
 
-  val journey: String = Journey.QUERY_BUILDER
+  val journey: String = QueryType.QUERY_BUILDER
 
   "lookup" should {
 
@@ -69,7 +69,7 @@ class SIC8IndexConnectorSpec extends UnitSpec with MockitoSugar {
     ) foreach { data =>
       s"""should return at least ${data.numMin} result when searching for "${data.query}"  with a top hit of ${data.topHit}""" in new Setup {
 
-        val result: SearchResult = index.search(data.query, journey = Some(journey))
+        val result: SearchResult = index.search(data.query, queryType = Some(journey))
 
         val sics: Seq[SicCode] = result.results
         sics.length should be >= data.numMin
@@ -93,7 +93,7 @@ class SIC8IndexConnectorSpec extends UnitSpec with MockitoSugar {
     ) foreach { case (query, maxResults) =>
       s"""should return $maxResults results when maxResult is specified when searching for "$query"""" in new Setup {
 
-        val result: SearchResult = index.search(query, maxResults, journey = Some(journey))
+        val result: SearchResult = index.search(query, maxResults, queryType = Some(journey))
 
         val sics: Seq[SicCode] = result.results
         sics.length shouldBe maxResults
@@ -139,7 +139,7 @@ class SIC8IndexConnectorSpec extends UnitSpec with MockitoSugar {
     ) foreach { data =>
       s"""should return at least ${data.numMin} result when searching for "${data.query}"  with a top hit of ${data.topHit}""" in new Setup {
 
-        val result: SearchResult = index.search(data.query, journey = Some(journey))
+        val result: SearchResult = index.search(data.query, queryType = Some(journey))
 
         val sics: Seq[SicCode] = result.results
 
@@ -154,7 +154,7 @@ class SIC8IndexConnectorSpec extends UnitSpec with MockitoSugar {
     }
 
     "Should return nothing if no match" in new Setup {
-      val result: SearchResult = index.search("XXX", journey = Some(journey))
+      val result: SearchResult = index.search("XXX", queryType = Some(journey))
       result.results shouldBe Seq()
     }
   }

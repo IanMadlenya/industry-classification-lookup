@@ -27,12 +27,12 @@ import play.api.libs.json.{JsObject, Json}
 class LookupServiceSpec extends UnitSpec with MockitoSugar {
 
   val mockConfig: MicroserviceConfig = mock[MicroserviceConfig]
-  val mockIndex: SIC8IndexConnector = mock[SIC8IndexConnector]
+  val mockIndex: IndexConnector = mock[IndexConnector]
 
   trait Setup {
     val service: LookupService = new LookupService {
       val config: MicroserviceConfig = mockConfig
-      val sic8Index: SIC8IndexConnector = mockIndex
+      val sic8Index: IndexConnector = mockIndex
     }
   }
 

@@ -35,12 +35,12 @@ import play.api.libs.json.{Format, Json}
 
 @Singleton
 class LookupServiceImpl @Inject()(val config: MicroserviceConfig,
-                                  val sic8Index: SIC8IndexConnector) extends LookupService
+                                  val sic8Index: IndexConnector) extends LookupService
 
 trait LookupService {
 
   val config: MicroserviceConfig
-  val sic8Index: SIC8IndexConnector
+  val sic8Index: IndexConnector
 
   def lookup(sicCode: String): Option[SicCode] = {
     sic8Index.lookup(sicCode)
@@ -50,29 +50,39 @@ trait LookupService {
              pageResults: Option[Int] = None,
              page: Option[Int] = None,
              sector: Option[String] = None,
-             journey: Option[String] = None): SearchResult = {
-    sic8Index.search(query, pageResults.getOrElse(5), page.getOrElse(1), sector, journey)
+             queryType: Option[String] = None): SearchResult = {
+    sic8Index.search(query, pageResults.getOrElse(5), page.getOrElse(1), sector, queryType)
   }
 }
 
 case class FacetResults(code: String, name: String, count: Int)
 object FacetResults { implicit val formats: Format[FacetResults] = Json.format[FacetResults] }
+
 case class SearchResult(numFound: Long, nonFilteredFound: Long = 0, results: Seq[SicCode], sectors: Seq[FacetResults])
 object SearchResult { implicit val formats: Format[SearchResult] = Json.format[SearchResult] }
 
-object Journey {
+object QueryType {
   val QUERY_BUILDER = "query-builder"
   val QUERY_PARSER = "query-parser"
 }
 
-@Singleton
-class SIC8IndexConnectorImpl @Inject()(val config: MicroserviceConfig) extends SIC8IndexConnector
-
-trait SIC8IndexConnector {
-
+// TODO move this to another file
+@Singleton  // TODO - remove
+class SIC8IndexConnectorImpl @Inject()(val config: MicroserviceConfig) extends IndexConnector {
+  override val name = "hmrc-sic8"
   val FIELD_CODE8 = "code8"
   val FIELD_DESC = "description"
+  val FIELD_SEARCH_TERMS = "description" // TODO - need to add this support in to index build and test it
   val FIELD_SECTOR = "sector"
+}
+
+trait IndexConnector {
+
+  val name: String
+  val FIELD_CODE8: String
+  val FIELD_DESC: String
+  val FIELD_SEARCH_TERMS: String
+  val FIELD_SECTOR: String
 
   val config: MicroserviceConfig
 
@@ -91,13 +101,13 @@ trait SIC8IndexConnector {
     new StandardAnalyzer(new CharArraySet(stopWords.asJava, true))
   }
 
-  def index(name: String): NIOFSDirectory = {
-    val path = FileSystems.getDefault().getPath(indexLocation, name)
+  def index(indexName: String): NIOFSDirectory = {
+    val path = FileSystems.getDefault().getPath(indexLocation, indexName)
     new NIOFSDirectory(path)
   }
 
-  val reader: DirectoryReader = DirectoryReader.open(index("sic8"))
-  val searcher = new IndexSearcher(reader)
+  lazy val reader: DirectoryReader = DirectoryReader.open(index(name))
+  lazy val searcher = new IndexSearcher(reader)
   val facetsCollector = new FacetsCollector()
 
   private def extractSic(result: ScoreDoc) = {
@@ -122,9 +132,9 @@ trait SIC8IndexConnector {
              pageResults: Int = 5,
              page: Int = 1,
              sector: Option[String] = None,
-             journey: Option[String] = None): SearchResult = {
+             queryType: Option[String] = None): SearchResult = {
 
-    val parsedQuery = buildQuery(query, journey)
+    val parsedQuery = buildQuery(query, queryType)
 
     val collector: TopScoreDocCollector = TopScoreDocCollector.create(1000)
 
@@ -159,12 +169,12 @@ trait SIC8IndexConnector {
     }
   }
 
-  private[services] def buildQuery(query: String, journey: Option[String] = None): Query = {
-    import Journey._
-    journey match {
-      case Some(QUERY_BUILDER) => new QueryBuilder(analyzer).createBooleanQuery(FIELD_DESC, query)
-      case Some(QUERY_PARSER)  => new QueryParser(FIELD_DESC, analyzer).parse(query)
-      case _                   => throw new RuntimeException("No journey provided")
+  private[services] def buildQuery(query: String, queryType: Option[String] = None): Query = {
+    import QueryType._
+    queryType match {
+      case Some(QUERY_BUILDER) => new QueryBuilder(analyzer).createBooleanQuery(FIELD_SEARCH_TERMS, query)
+      case Some(QUERY_PARSER)  => new QueryParser(FIELD_SEARCH_TERMS, analyzer).parse(query)
+      case _                   => throw new RuntimeException("No queryType provided")
     }
   }
 

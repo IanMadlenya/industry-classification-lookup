@@ -18,7 +18,7 @@ package config
 
 import com.google.inject.AbstractModule
 import controllers._
-import services.{SIC8IndexConnector, SIC8IndexConnectorImpl, LookupService, LookupServiceImpl}
+import services._
 import uk.gov.hmrc.play.config.inject.{DefaultServicesConfig, ServicesConfig}
 
 class Module extends AbstractModule {
@@ -40,7 +40,7 @@ class Module extends AbstractModule {
   }
 
   private def bindConnecors() {
-    bind(classOf[SIC8IndexConnector]).to(classOf[SIC8IndexConnectorImpl])
+    bind(classOf[IndexConnector]).to(classOf[SIC8IndexConnectorImpl]) // TODO !!! Named Binding !!!
   }
 
   private def bindConfig() {

@@ -76,6 +76,8 @@ trait SIC8IndexConnector {
 
   val config: MicroserviceConfig
 
+  val indexLocation = config.getConfigString("index.path")
+
   val analyzer: StandardAnalyzer = {
     import scala.collection.JavaConverters._
     val stopWords = List(
@@ -89,19 +91,8 @@ trait SIC8IndexConnector {
     new StandardAnalyzer(new CharArraySet(stopWords.asJava, true))
   }
 
-  // TODO - when should we close the index?
   def index(name: String): NIOFSDirectory = {
-    // TODO index location in config ?!
-//    val pathLocal = FileSystems.getDefault().getPath("target", "scala-2.11", "resource_managed", "main", "conf", "index", name)
-//    val pathSM = FileSystems.getDefault().getPath("conf", "index", name)
-
-    val pathLocal = FileSystems.getDefault().getPath("target/scala-2.11/resource_managed/main/conf/index", name)
-    val pathSM = FileSystems.getDefault().getPath("conf/index", name)
-
-    val path = pathSM
-
-//    val path: Path = FileSystems.getDefault.getPath("conf", "index").resolve("sic8")
-
+    val path = FileSystems.getDefault().getPath(indexLocation, name)
     new NIOFSDirectory(path)
   }
 
@@ -115,7 +106,7 @@ trait SIC8IndexConnector {
   }
 
   def lookup(sicCode: String): Option[SicCode] = {
-    val qp = new QueryParser(FIELD_CODE8, analyzer) // TODO QueryBuilder?
+    val qp = new QueryParser(FIELD_CODE8, analyzer)
 
     val results = searcher.search(qp.parse(sicCode), 1)
 

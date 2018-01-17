@@ -23,12 +23,13 @@ import uk.gov.hmrc.play.test.UnitSpec
 
 class SIC8IndexConnectorSpec extends UnitSpec with MockitoSugar {
 
-  val mockConfig: MicroserviceConfig = mock[MicroserviceConfig]
+  val mockConfig: MicroserviceConfig = new MicroserviceConfig {
+    override protected lazy val playConfig = ???
+    override def getConfigString(x: String) = "target/scala-2.11/resource_managed/main/conf/index"
+  }
 
   trait Setup {
-    val index: SIC8IndexConnector = new SIC8IndexConnector {
-      override val config: MicroserviceConfig = mockConfig
-    }
+    val index = new SIC8IndexConnectorImpl(mockConfig)
   }
 
   val journey: String = Journey.QUERY_BUILDER

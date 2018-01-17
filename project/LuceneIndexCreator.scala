@@ -51,9 +51,9 @@ object LuceneIndexCreator extends IndexBuilder {
     resourceGenerators in Compile += indexBuildTask,
 
     mappings in Universal <++= (packageBin in Compile, resourceManaged in Compile) map { (_, managed) => {
-      log.debug(s"mappings in Universal :: managed - $managed")
-      log.debug(s"Getting content of ${managed}")
-      log.debug(s"${contentOf( managed )}")
+//      log.debug(s"mappings in Universal :: managed - $managed")
+//      log.debug(s"Getting content of ${managed}")
+//      log.debug(s"${contentOf( managed )}")
       contentOf( managed )
     } },
 
@@ -68,10 +68,6 @@ trait IndexBuilder {
 
   val log = ConsoleLogger()
   private val fs: FileSystem = FileSystems.getDefault
-//  val rootPath: Path = fs.getPath("conf", "index")
-//  val indexSic8Path: Path = rootPath.resolve("sic8")
-
-//  val indexSic8Path: Path
 
   val industryCodeMapping = Map.apply(
     "01" -> "A", "02" -> "A", "03" -> "A",

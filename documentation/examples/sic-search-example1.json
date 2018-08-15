@@ -1,0 +1,17 @@
+{
+  "numFound": 1,
+  "nonFilteredFound": 1,
+  "results": [
+    {
+      "code": "01490",
+      "desc": "Snail farming"
+    }
+  ],
+  "sectors": [
+    {
+      "code": "A",
+      "name": "Agriculture, Forestry And Fishing",
+      "count": 1
+    }
+  ]
+}

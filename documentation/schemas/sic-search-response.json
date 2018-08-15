@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "SIC Search",
+  "type": "object",
+  "required": ["numFound", "nonFilteredFound", "results"],
+  "properties": {
+    "numFound": {
+      "description": "The number of results found for this search.",
+      "type": "number"
+    },
+    "nonFilteredFound": {
+      "description": "The number of results found, excluding any filtering appled for sectors.",
+      "type": "integer"
+    },
+    "results": {
+      "description": "The actual results of the search.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "desc"],
+        "properties": {
+          "code": {
+            "description": "Unique code for the industry classification",
+            "type": "string",
+            "pattern": "^[0-9]{1,5}$"
+          },
+          "desc": {
+            "description": "Description of the industry classification",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "sectors": {
+      "description": "The sectors found for the search results, to enable filtering of results.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "count"],
+        "properties": {
+          "code": {
+            "description": "Unique code for the industry sector",
+            "type": "string",
+            "pattern": "^[A-Z]$"
+          },
+          "name": {
+            "description": "The human readable name of the sector",
+            "type": "string"
+          },
+          "count": {
+            "description": "The number of results in this sector",
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

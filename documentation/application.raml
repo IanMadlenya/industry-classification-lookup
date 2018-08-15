@@ -1,0 +1,124 @@
+#%RAML 1.0
+---
+
+title: Industry Classification Lookup (SIC)
+version: 1.0
+protocols: [ HTTP ]
+baseUri: https://localhost/
+mediaType: application/json
+
+uses:
+  sec: https://developer.service.hmrc.gov.uk/api-documentation/assets/common/modules/securitySchemes.raml
+  headers: https://developer.service.hmrc.gov.uk/api-documentation/assets/common/modules/headers.raml
+  annotations: https://developer.service.hmrc.gov.uk/api-documentation/assets/common/modules/annotations.raml
+  types: https://developer.service.hmrc.gov.uk/api-documentation/assets/common/modules/types.raml
+
+
+documentation:
+  - title: Overview
+    content: !include overview.md
+
+traits:
+  contentType:
+    headers:
+      Content-Type:
+        description: Specifies the format of the request body, which must be JSON.
+        type: string
+        required: true
+        example: application/json
+  authorization:
+    headers:
+      Authorization:
+        description: A valid BEARER token to grant access to the service
+        type: string
+        required: true
+        example: Bearer [YOUR-SERVER-TOKEN]
+
+/industry-classification-lookup/lookup:
+  /{sicCode}:
+    uriParameters:
+      sicCode:
+        description: Unique SIC number or comma separated codes
+        type: string
+        example: "01110,01120"
+    /:
+      displayName: Retrieve SIC descriptions for codes
+      description: Retrieve SIC descriptions for codes
+      get:
+        displayName: Retrieve SIC descriptions for codes
+        description: !include scenarios/sic-code-lookup.md
+        is: [contentType, authorization]
+        securedBy: [ sec.x-application ]
+        responses:
+          200:
+            body:
+              application/json:
+                type: !include schemas/sic-lookup-response.json
+                examples:
+                 example-1:
+                  description: lookup a single code - "01110"
+                  value: !include examples/sic-lookup-example1.json
+                 example-2:
+                  description: lookup two codes - "01110,01120"
+                  value: !include examples/sic-lookup-example2.json
+          204:
+
+/industry-classification-lookup/search:
+    /:
+      displayName: Search for SIC code and descriptions for codes
+      description: Search for SIC code and descriptions for codes
+      get:
+        displayName: Search for SIC code and descriptions for codes
+        description: !include scenarios/sic-code-search.md
+        is: [contentType, authorization]
+        securedBy: [ sec.x-application ]
+        queryParameters:
+         query:
+           description: The search terms to be queried against the index.
+           type: string
+           example: snail
+           required: true
+         indexName:
+           description: The name of the index to use. Default is ons-supplement-sic5 but gds-register-sic5 can be supplied as an alternative.
+           type: string
+           example: ons-supplement-sic5
+           required: false
+         pageResults:
+           description: The number of results per page - default = 5.
+           type: integer
+           example: 10
+           required: false
+         page:
+           description: Which page to return, defaults to the first page.
+           type: integer
+           example: 3
+           required: false
+         sector:
+           description: The letter referring to the sector to filter the results to.
+           type: string
+           example: A
+           required: false
+         queryParser:
+           description: A flag to enable the full Lucene query parser syntax.
+           type: boolean
+           required: false
+         queryBoostFirstTerm:
+           description: A flag to promote the first search term as more important when sorting results.
+           type: boolean
+           required: false
+        responses:
+          200:
+            body:
+              application/json:
+                type: !include schemas/sic-search-response.json
+                examples:
+                 example-1:
+                  description: /search/query=snail
+                  value: !include examples/sic-search-example1.json
+                 example-2:
+                  description: /search/query=farming
+                  value: !include examples/sic-search-example2.json
+                 example-3:
+                  description: /search/query=computer
+                  value: !include examples/sic-search-example3.json
+          204:

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "SIC Lookup",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["code", "desc"],
+    "properties": {
+      "code": {
+        "description": "Unique code for the industry classification",
+        "type": "string",
+        "pattern": "^[0-9]{1,5}$"
+      },
+      "desc": {
+        "description": "Description of the industry classification",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  }
+}

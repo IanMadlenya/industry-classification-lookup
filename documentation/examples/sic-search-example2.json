@@ -1,0 +1,33 @@
+{
+  "numFound": 27,
+  "nonFilteredFound": 27,
+  "results": [
+    {
+      "code": "01410",
+      "desc": "Dairy farming"
+    },
+    {
+      "code": "01430",
+      "desc": "Stud farming"
+    },
+    {
+      "code": "01450",
+      "desc": "Goat farming"
+    },
+    {
+      "code": "01450",
+      "desc": "Sheep farming"
+    },
+    {
+      "code": "01460",
+      "desc": "Pig farming"
+    }
+  ],
+  "sectors": [
+    {
+      "code": "A",
+      "name": "Agriculture, Forestry And Fishing",
+      "count": 27
+    }
+  ]
+}

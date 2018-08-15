@@ -1,0 +1,69 @@
+{
+  "numFound": 67,
+  "nonFilteredFound": 67,
+  "results": [
+    {
+      "code": "26200",
+      "desc": "Computer (manufacture)"
+    },
+    {
+      "code": "85590",
+      "desc": "Computer training"
+    },
+    {
+      "code": "18203",
+      "desc": "Reproduction of computer media"
+    },
+    {
+      "code": "26200",
+      "desc": "Analogue computer (manufacture)"
+    },
+    {
+      "code": "26200",
+      "desc": "Computer (electronic) (manufacture)"
+    }
+  ],
+  "sectors": [
+    {
+      "code": "C",
+      "name": "Manufacturing",
+      "count": 26
+    },
+    {
+      "code": "J",
+      "name": "Information And Communication",
+      "count": 18
+    },
+    {
+      "code": "G",
+      "name": "Wholesale And Retail Trade; Repair Of Motor Vehicles And Motorcycles",
+      "count": 8
+    },
+    {
+      "code": "S",
+      "name": "Other Service Activities",
+      "count": 7
+    },
+    {
+      "code": "F",
+      "name": "Construction",
+      "count": 4
+    },
+    {
+      "code": "P",
+      "name": "Education",
+      "count": 2
+    },
+    {
+      "code": "M",
+      "name": "Professional, Scientific And Technical Activities",
+      "count": 1
+    },
+    {
+      "code": "N",
+      "name": "Administrative And Support Service Activities",
+      "count": 1
+    }
+  ]
+}
+
